@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Photo Capture</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Take Your Own Photo</h1>
+  <video id="video" autoplay></video>
+  <canvas id="canvas" width="640" height="480"></canvas>
+  <br>
+  <button id="capture">Take Photo</button>
+  <button id="download" style="display: none;">Download Photo</button>
+
+  <div id="filters" style="display: none;">
+    <h2>Apply a Filter:</h2>
+    <button class="filter" data-filter="none">No Filter</button>
+    <button class="filter" data-filter="grayscale">Grayscale</button>
+    <button class="filter" data-filter="sepia">Sepia</button>
+    <button class="filter" data-filter="invert">Invert</button>
+    <button class="filter" data-filter="brightness">Brightness</button>
+    <button class="filter" data-filter="contrast">Contrast</button>
+  </div>
+
+  <div id="stickers" style="display: none;">
+    <h2>Add Stickers:</h2>
+    <img src="sticker1.png" alt="Sticker 1" class="sticker" draggable="true">
+    <img src="sticker2.png" alt="Sticker 2" class="sticker" draggable="true">
+    <img src="sticker3.png" alt="Sticker 3" class="sticker" draggable="true">
+  </div>
+
+  <h2>Draw on Photo:</h2>
+  <button id="toggle-draw">Enable Drawing</button>
+  <button id="clear-draw">Clear Drawing</button>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const captureButton = document.getElementById('capture');
+    const downloadButton = document.getElementById('download');
+    const filtersDiv = document.getElementById('filters');
+    const stickersDiv = document.getElementById('stickers');
+    const filterButtons = document.querySelectorAll('.filter');
+    const toggleDrawButton = document.getElementById('toggle-draw');
+    const clearDrawButton = document.getElementById('clear-draw');
+    const stickers = document.querySelectorAll('.sticker');
+    
+    let drawing = false;
+
+    // Webcam access
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch(err => console.error('Webcam access error:', err));
+
+    // Capture photo
+    captureButton.addEventListener('click', () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      filtersDiv.style.display = 'block';
+      stickersDiv.style.display = 'block';
+      downloadButton.style.display = 'inline';
+      downloadButton.href = canvas.toDataURL('image/png');
+      downloadButton.download = 'photo.png';
+    });
+
+    // Apply filters
+    filterButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const filter = button.getAttribute('data-filter');
+        canvas.style.filter = filter === 'none' ? 'none' : `${filter}(100%)`;
+      });
+    });
+
+    // Drawing functionality
+    toggleDrawButton.addEventListener('click', () => {
+      drawing = !drawing;
+      toggleDrawButton.textContent = drawing ? 'Disable Drawing' : 'Enable Drawing';
+    });
+
+    canvas.addEventListener('mousedown', () => {
+      if (drawing) ctx.beginPath();
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (drawing) {
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.stroke();
+      }
+    });
+
+    clearDrawButton.addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height); // Redraw photo
+    });
+
+    // Sticker functionality
+    stickers.forEach(sticker => {
+      sticker.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('sticker-src', sticker.src);
+      });
+    });
+
+    canvas.addEventListener('dragover', e => e.preventDefault());
+
+    canvas.addEventListener('drop', e => {
+      e.preventDefault();
+      const stickerSrc = e.dataTransfer.getData('sticker-src');
+      const img = new Image();
+      img.src = stickerSrc;
+      img.onload = () => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        ctx.drawImage(img, x - 25, y - 25, 50, 50); // Sticker size 50x50
+      };
+    });
+  </script>
+</body>
+</html>
